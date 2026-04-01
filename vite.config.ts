@@ -19,4 +19,36 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+  
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router',
+          ],
+          'ui-components': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-select',
+            '@radix-ui/react-accordion',
+            'lucide-react',
+          ],
+          'firebase': [
+            'firebase/app',
+            'firebase/auth',
+            'firebase/firestore',
+          ],
+          'charts': [
+            'recharts',
+          ],
+        },
+      },
+    },
+  },
 })
