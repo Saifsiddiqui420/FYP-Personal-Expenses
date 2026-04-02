@@ -16,7 +16,9 @@ import {
   where, 
   onSnapshot,
   Timestamp,
-  getDocs
+  getDocs,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 
@@ -27,6 +29,7 @@ export interface User {
   email: string;
   createdAt: string;
   role: 'admin' | 'user';
+  profilePictureUrl?: string;
 }
 
 export interface Expense {
@@ -83,6 +86,7 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfilePicture: (file: File) => Promise<void>;
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'userId'>) => Promise<void>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
@@ -134,13 +138,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
         if (firebaseUser) {
+          // Fetch user document from Firestore to get profilePicture
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          let profilePictureUrl: string | undefined;
+          if (userDocSnap.exists()) {
+            profilePictureUrl = userDocSnap.data().profilePicture;
+          }
+          
           // Create user object from Firebase auth
           const userData: User = {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
             email: firebaseUser.email || '',
             createdAt: new Date().toISOString(),
-            role: 'user'
+            role: 'user',
+            profilePictureUrl
           };
           
           setUser(userData);
@@ -555,6 +569,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  // Profile picture upload (stores as base64 in Firestore)
+  const updateProfilePicture = async (file: File): Promise<void> => {
+    if (!user) throw new Error('User not authenticated');
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
+      
+      // Update or create user document with base64 picture
+      const userDocRef = doc(db, 'users', user.id);
+      await setDoc(userDocRef, {
+        profilePicture: base64Data
+      }, { merge: true });
+      
+      // Update local user state
+      setUser({
+        ...user,
+        profilePictureUrl: base64Data
+      });
+    } catch (error) {
+      console.error('Upload profile picture error:', error);
+      throw error;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -563,6 +610,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         login,
         signup,
         logout,
+        updateProfilePicture,
         expenses,
         addExpense,
         updateExpense,

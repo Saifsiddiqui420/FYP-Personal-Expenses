@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router";
 import { useApp } from "../context/AppContext";
 import { useAuthModal } from "../context/AuthModalContext";
 import { Button } from "./ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { 
   Wallet, 
   LayoutDashboard, 
@@ -70,9 +71,17 @@ export default function Navbar() {
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <User className="h-4 w-4" />
-                      {user.name}
+                    <Button variant="ghost" size="sm" className="gap-2 h-10 w-10 rounded-full p-0">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage 
+                          src={user.profilePictureUrl || undefined} 
+                          alt={user.name}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-indigo-100 text-indigo-600">
+                          {user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -98,6 +107,23 @@ export default function Navbar() {
                 </SheetTrigger>
                 <SheetContent>
                   <div className="flex flex-col gap-4 mt-8">
+                    {/* Profile Avatar in Mobile Menu */}
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg mb-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage 
+                          src={user.profilePictureUrl || undefined} 
+                          alt={user.name}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="bg-indigo-100 text-indigo-600 text-lg font-bold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
+                      </div>
+                    </div>
                     {navLinks.map((link) => (
                       <Link
                         key={link.to}

@@ -1,15 +1,18 @@
 import { Navigate } from "react-router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useApp } from "../../context/AppContext";
 import Navbar from "../../components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { User, Mail, Calendar, Database, Download } from "lucide-react";
+import { User, Mail, Calendar, Database, Download, Camera, X } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
-  const { user, isLoading, expenses, income, budgets, trips, categories } = useApp();
+  const { user, isLoading, expenses, income, budgets, trips, categories, updateProfilePicture } = useApp();
   const [showExportInfo, setShowExportInfo] = useState(false);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Wait for auth state to load before redirecting
   if (isLoading) {
@@ -54,6 +57,60 @@ export default function ProfilePage() {
     toast.success("Data exported successfully");
   };
 
+  const handleProfilePictureSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfilePicturePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadProfilePicture = async () => {
+    const file = fileInputRef.current?.files?.[0];
+    if (!file) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    setIsUploadingPicture(true);
+    try {
+      await updateProfilePicture(file);
+      toast.success('Profile picture updated successfully');
+      setProfilePicturePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Profile picture upload error:', error);
+      toast.error('Failed to upload profile picture');
+    } finally {
+      setIsUploadingPicture(false);
+    }
+  };
+
+  const clearProfilePicturePreview = () => {
+    setProfilePicturePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const stats = {
     totalExpenses: expenses.length,
     totalIncome: income.length,
@@ -72,6 +129,85 @@ export default function ProfilePage() {
           <h1 className="text-3xl text-gray-900">Profile</h1>
           <p className="text-gray-600 mt-1">Manage your account and data</p>
         </div>
+
+        {/* Profile Picture */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Profile Picture</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Current or Preview Picture */}
+              <div className="flex justify-center">
+                <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-gray-200">
+                  {profilePicturePreview ? (
+                    <img 
+                      src={profilePicturePreview} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : user?.profilePictureUrl ? (
+                    <img 
+                      src={user.profilePictureUrl} 
+                      alt={user.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center">
+                      <Camera className="h-16 w-16 text-indigo-400" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* File Input */}
+              <div className="flex justify-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full sm:w-auto"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Choose Photo
+                </Button>
+              </div>
+
+              {/* Upload Button */}
+              {profilePicturePreview && (
+                <div className="flex gap-2 justify-center sm:justify-start">
+                  <Button
+                    onClick={handleUploadProfilePicture}
+                    disabled={isUploadingPicture}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {isUploadingPicture ? 'Uploading...' : 'Upload Picture'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={clearProfilePicturePreview}
+                    disabled={isUploadingPicture}
+                    size="icon"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {user?.profilePictureUrl && !profilePicturePreview && (
+                <p className="text-center text-sm text-gray-500">
+                  Click "Choose Photo" to update your profile picture
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* User Info */}
         <Card className="mb-6">
